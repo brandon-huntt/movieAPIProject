@@ -1,0 +1,25 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+<head>
+    <meta charset="UTF-8">
+    <title>Movie Review Application - Home</title>
+    <style>
+        body { font-family: Arial, sans-serif; margin: 2em; }
+        header { margin-bottom: 1em; }
+        nav a { margin-right: 1em; text-decoration: none; color: blue; }
+    </style>
+</head>
+<body>
+<header>
+    <h1 th:text="${message}">Welcome to the Movie Review Application</h1>
+    <nav>
+        <a th:href="@{/}">Home</a>
+        <a th:href="@{/movies}">Movies</a>
+        <a th:href="@{/reviews}">Reviews</a>
+    </nav>
+</header>
+<main>
+    <p>Use the navigation links above to browse movies and reviews.</p>
+</main>
+</body>
+</html>

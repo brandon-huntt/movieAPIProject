@@ -1,0 +1,49 @@
+<!DOCTYPE html>
+<html lang="en" xmlns:th="http://www.thymeleaf.org">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Reviews List</title>
+    <style>
+        body { font-family: Arial, sans-serif; background-color: #f4f4f9; padding: 20px; }
+        h1 { color: #333; }
+        table { width: 100%; border-collapse: collapse; margin-bottom: 20px; background-color: #fff; }
+        th, td { padding: 12px; text-align: left; border-bottom: 1px solid #ddd; }
+        th { background-color: #4CAF50; color: white; }
+        tr:hover { background-color: #f1f1f1; }
+        nav a { margin-right: 15px; text-decoration: none; color: #4CAF50; }
+    </style>
+</head>
+<body>
+<header>
+    <h1>Reviews List</h1>
+    <nav>
+        <a href="/">Home</a>
+        <a href="/movies">Movies</a>
+        <a href="/reviews/view">Reviews</a>
+    </nav>
+</header>
+<main>
+    <table>
+        <thead>
+        <tr>
+            <th>ID</th>
+            <th>Author</th>
+            <th>Rating</th>
+            <th>Comment</th>
+            <th>Movie Name</th>
+        </tr>
+        </thead>
+        <tbody>
+        <tr th:each="review : ${reviews}">
+            <td th:text="${review.id}">1</td>
+            <td th:text="${review.authorName}">John Doe</td>
+            <td th:text="${review.rating}">5</td>
+            <td th:text="${review.comment}">Excellent movie!</td>
+            <td th:text="${review.movieName}">The Matrix</td>
+        </tr>
+        </tbody>
+    </table>
+</main>
+</body>
+</html>

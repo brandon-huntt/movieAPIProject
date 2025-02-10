@@ -1,0 +1,15 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Write a Review</title>
+</head>
+<body>
+<h2>Write a Review for: <span th:text="${movie.title}"></span></h2>
+<form th:action="@{/reviews/add}" method="post">
+    <input type="hidden" name="movieId" th:value="${movie.id}" />
+    <label>Rating (1-5):</label><input type="number" name="rating" min="1" max="5" required><br>
+    <label>Comment:</label><textarea name="comment" required></textarea><br>
+    <button type="submit">Submit Review</button>
+</form>
+</body>
+</html>

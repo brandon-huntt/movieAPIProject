@@ -1,7 +1,7 @@
 package api.demo.domain;
 
 import jakarta.persistence.*;
-import jakarta.validation.constraints.*;
+
 import java.time.LocalDateTime;
 
 @Entity
@@ -12,50 +12,18 @@ public class Review {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
-    @NotBlank
-    private String authorName; // userName from the user
-
-    @Min(1)
-    @Max(5)
+    private String authorName;
     private int rating;
-
-    @NotBlank
-    @Size(min = 5, max = 500)
     private String comment;
+    private int movieId;
 
-    // Link to the movie
-    private Integer movieId;
+    @Transient // Marking as transient to avoid column mapping issues
+    private String movieName;  // New field
 
     private LocalDateTime createdAt;
     private LocalDateTime updatedAt;
 
-    // No-argument constructor
-    public Review() {
-    }
-
-    // All-arguments constructor
-    public Review(Long id, String authorName, int rating, String comment, Integer movieId, LocalDateTime createdAt, LocalDateTime updatedAt) {
-        this.id = id;
-        this.authorName = authorName;
-        this.rating = rating;
-        this.comment = comment;
-        this.movieId = movieId;
-        this.createdAt = createdAt;
-        this.updatedAt = updatedAt;
-    }
-
-    @PrePersist
-    public void onCreate() {
-        this.createdAt = LocalDateTime.now();
-        this.updatedAt = LocalDateTime.now();
-    }
-
-    @PreUpdate
-    public void onUpdate() {
-        this.updatedAt = LocalDateTime.now();
-    }
-
-    // Getters and setters
+    // Getters and Setters
 
     public Long getId() {
         return id;
@@ -89,12 +57,20 @@ public class Review {
         this.comment = comment;
     }
 
-    public Integer getMovieId() {
+    public int getMovieId() {
         return movieId;
     }
 
-    public void setMovieId(Integer movieId) {
+    public void setMovieId(int movieId) {
         this.movieId = movieId;
+    }
+
+    public String getMovieName() { // Getter for movieName
+        return movieName;
+    }
+
+    public void setMovieName(String movieName) { // Setter for movieName
+        this.movieName = movieName;
     }
 
     public LocalDateTime getCreatedAt() {
