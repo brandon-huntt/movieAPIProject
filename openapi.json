@@ -1,0 +1,758 @@
+openapi: 3.0.3
+info:
+  title: movieAPI
+  version: 1.0.0
+  description: |
+    # movieAPI – BDD User Stories and Acceptance Criteria
+
+    This API manages movies and reviews. Below are the main user stories, rules, and examples (in BDD style) that guide the design and implementation.
+
+    ---
+
+    ## Story: As a user, I want to add a movie review
+    **Rules**:
+    1. A review must be linked to an existing movie in the database.
+    2. If the movie does not exist, it must be added by an administrator before a review can be created.
+    3. Reviews must be associated with an authenticated user.
+    4. A review must have a text comment between 5 and 500 characters.
+    5. A user can only review a movie once (they should recieve the option to update their existing review).
+    6. Adding a review should recalculate the movie’s average rating.
+
+    **Examples**:
+    - **Success**:  
+      “Given the user is logged in;  
+       And the movie exists in the database;  
+       When they submit a 5-star rating with the comment `Amazing movie!`;  
+       Then the response code should be `201 Created`;  
+       And the review is saved with an ID;  
+       And the movie’s average rating is updated (200 OK to fetch).”
+
+    - **Movie Does Not Exist**:  
+      “Given the user is logged in;  
+       And the movie is *not* in the database;  
+       When they try to review it;  
+       Then the response code should be `403 Forbidden` (or `404 Not Found`),  
+       Indicating they cannot add the movie themselves;  
+       And the review is not saved.”
+
+    - **Already Reviewed**:  
+      “Given the user is logged in;  
+       And they have already reviewed the same movie;  
+       When they attempt to review again;  
+       Then the response code should be `409 Conflict`;  
+       And the system displays: ‘You have already reviewed this movie. Edit your existing review instead.’”
+
+    ---
+
+    ## Story: As a user, I want to update a movie review
+    **Rules**:
+    1. A user can update only their own review.
+    2. The review update must contain valid content (rating and comment).
+    3. Updating a review should recalculate the movie’s average rating.
+    4. The review to be updated must exist.
+
+    **Examples**:
+    - **Forbidden**:
+      “Given another user has a review for ‘Interstellar’;  
+       And the current user has *not* reviewed this movie;  
+       When they attempt to update that review;  
+       Then the response code should be `403 Forbidden`;  
+       And the system displays ‘You are not authorized to update this review.’”
+
+    - **Success**:
+      “Given the user is logged in;  
+       And they have a review for ‘Titanic’;  
+       When they update the rating from 5 to 4 and the comment to ‘Still a great movie’;  
+       Then the response code should be `200 OK`;  
+       And the updated review is saved;  
+       And the movie’s average rating is recalculated.”
+
+    ---
+
+    ## Story: As a user, I want to delete a movie review
+    **Rules**:
+    1. A user can delete only their own review (unless they are an admin).
+    2. Deleting a review should recalculate the movie’s average rating.
+    3. The review must exist to be deleted.
+
+    **Examples**:
+    - **Success**:
+      “Given the user has submitted a review for ‘The Matrix’;  
+       When they send a DELETE request for that review;  
+       Then the response code should be `200 OK` (or `204 No Content`);  
+       And the review is removed;  
+       And the movie’s average rating is recalculated.”
+
+    - **Forbidden**:
+      “Given another user has a review for ‘The Godfather’;  
+       And the current user has *not* reviewed it;  
+       When they attempt to delete that review;  
+       Then the response code should be `403 Forbidden`;  
+       And the system displays ‘You are not authorized to delete this review.’”
+
+    ---
+
+    ## Story: As a user, I want to search for a movie review
+    **Rules**:
+    1. Users should be able to search for reviews by movie title.
+    2. Users should be able to search for reviews by a keyword within the comments.
+    3. Users should be able to filter reviews by rating.
+    4. If no reviews match the search criteria, the system should display an appropriate message.
+    5. Users should be able to search for reviews *they have authored* (e.g. a “my reviews” filter).
+
+    **Examples**:
+    - **Keyword Search**:
+      “Given multiple reviews exist with various comments;  
+       When the user sends a GET request to search for the keyword ‘masterpiece’;  
+       Then the response code should be `200 OK`;  
+       And the system returns all reviews with the text ‘masterpiece’ in their comment.”
+
+    - **No Results**:
+      “Given no reviews contain the word ‘Incredible’;  
+       When the user searches for that keyword;  
+       Then the response code should be `404 Not Found`;  
+       And the system displays ‘No reviews found with this word.’”
+
+    ---
+
+    ## Story: As an admin, I want to add/delete movies to/from the database
+    **Rules**:
+    1. Only the admin can add/delete movies.
+    2. A movie must have a valid title, genre, description, and release year.
+    3. If the movie already exists, the system should prevent duplication (`409 Conflict`).
+
+    **Examples**:
+    - **Add Movie Success**:
+      “Given the admin is logged in;  
+       When they send a POST request with all required fields to add ‘Inception’;  
+       Then the response code is `201 Created`;  
+       And the movie is added to the database and available for reviews.”
+
+    - **Duplicate Movie**:
+      “Given the admin is logged in;  
+       And ‘The Matrix’ already exists in the database;  
+       When they try to POST ‘The Matrix’ again;  
+       Then the response code is `409 Conflict`;  
+       And the system displays ‘This movie already exists in the database.’”
+
+    ---
+
+    ## Story: As an admin, I want to delete reviews from users
+    **Rules**:
+    1. The review must exist.
+    2. When deleted by an admin, the review is removed.
+    3. The movie’s average rating should be recalculated.
+
+    **Examples**:
+    - **Delete Review Success**:
+      “Given the admin is logged in;  
+       And a 5-star review for ‘The Matrix’ exists;  
+       When the admin deletes that review;  
+       Then the response code is `200 OK`;  
+       And the review is removed;  
+       And the average rating is recalculated.”
+
+    ---
+
+    ## Story: As an admin, I want to update information about a movie
+    **Rules**:
+    1. Only the admin can update movie information (title, description, genre, release year).
+    2. The movie must exist in the database.
+    3. Required fields must be valid.
+    4. Duplicate movie titles should not be allowed.
+    5. The system should confirm the update.
+
+    **Examples**:
+    - **Success**:
+      “Given the admin is logged in;  
+       And ‘The Matrix’ exists in the database;  
+       When they update its genre to ‘Cyberpunk’;  
+       Then the response code is `200 OK`;  
+       And the system returns: ‘Movie information updated successfully.’  
+       And the movie’s details are updated in the database.”
+
+    - **Movie Not Found**:
+      “When the admin tries to update ‘Unknown Movie’;  
+       Then the response code is `404 Not Found`;  
+       And the system displays: ‘Movie not found’;  
+       And the update is not saved.”
+
+    ---
+
+    This specification below defines all the endpoints, request/response formats, and error handling according to these BDD criteria.
+
+servers:
+  - url: https://api.exemplo.com/v1
+    description: Servidor de Produção
+
+paths:
+  /movies:
+    get:
+      summary: "Listar filmes"
+      description: "Retorna uma lista de filmes. Permite busca por título ou gênero."
+      operationId: "listMovies"
+      tags:
+        - Movies
+      parameters:
+        - name: search
+          in: query
+          required: false
+          schema:
+            type: string
+          description: "Termo de busca para título ou gênero do filme"
+      responses:
+        "200":
+          description: "Lista de filmes"
+          content:
+            application/vnd.api+json:
+              schema:
+                $ref: "#/components/schemas/MovieListResponse"
+
+    post:
+      summary: "Adicionar um novo filme (Admin Only)"
+      description: "Apenas administradores podem adicionar filmes ao banco de dados. Se um filme com o mesmo título já existir, retorna 409 Conflict."
+      operationId: "createMovie"
+      tags:
+        - Movies
+      requestBody:
+        required: true
+        content:
+          application/vnd.api+json:
+            schema:
+              $ref: "#/components/schemas/MovieRequest"
+      responses:
+        "201":
+          description: "Filme criado com sucesso"
+          content:
+            application/vnd.api+json:
+              schema:
+                $ref: "#/components/schemas/MovieResponse"
+        "400":
+          description: "Dados inválidos"
+          content:
+            application/vnd.api+json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "403":
+          description: "Apenas administradores podem adicionar filmes"
+          content:
+            application/vnd.api+json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "409":
+          description: "Já existe um filme com este título"
+          content:
+            application/vnd.api+json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  /movies/{id}:
+    get:
+      summary: "Obter detalhes de um filme"
+      description: "Retorna os dados de um filme específico com base no ID."
+      operationId: "getMovieById"
+      tags:
+        - Movies
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+          description: "ID do filme"
+      responses:
+        "200":
+          description: "Detalhes do filme"
+          content:
+            application/vnd.api+json:
+              schema:
+                $ref: "#/components/schemas/MovieResponse"
+        "404":
+          description: "Filme não encontrado"
+          content:
+            application/vnd.api+json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+    put:
+      summary: "Atualizar informações de um filme (Admin Only)"
+      description: "Atualiza os campos (ex: título, descrição, gênero, ano de lançamento). Se o novo título conflitar com um filme existente, retorna 409."
+      operationId: "updateMovie"
+      tags:
+        - Movies
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+          description: "ID do filme"
+      requestBody:
+        required: true
+        content:
+          application/vnd.api+json:
+            schema:
+              $ref: "#/components/schemas/MovieRequest"
+      responses:
+        "200":
+          description: "Informações do filme atualizadas com sucesso"
+          content:
+            application/vnd.api+json:
+              schema:
+                $ref: "#/components/schemas/MovieResponse"
+        "400":
+          description: "Dados inválidos"
+          content:
+            application/vnd.api+json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "403":
+          description: "Apenas administradores podem atualizar filmes"
+          content:
+            application/vnd.api+json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "404":
+          description: "Filme não encontrado"
+          content:
+            application/vnd.api+json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "409":
+          description: "Título duplicado (já existe outro filme com este título)"
+          content:
+            application/vnd.api+json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+    delete:
+      summary: "Excluir um filme (Admin Only)"
+      description: "Remove um filme do banco de dados. Todas as avaliações associadas também são removidas."
+      operationId: "deleteMovie"
+      tags:
+        - Movies
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+          description: "ID do filme"
+      responses:
+        "200":
+          description: "Filme removido com sucesso"
+        "403":
+          description: "Apenas administradores podem excluir filmes"
+          content:
+            application/vnd.api+json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "404":
+          description: "Filme não encontrado"
+          content:
+            application/vnd.api+json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  /reviews:
+    post:
+      summary: "Adicionar uma nova avaliação"
+      description: "Usuários autenticados podem adicionar avaliações. Caso o usuário já tenha avaliado este filme, retorna 409 Conflict. A média do filme é recalculada."
+      operationId: "createReview"
+      tags:
+        - Reviews
+      requestBody:
+        required: true
+        content:
+          application/vnd.api+json:
+            schema:
+              $ref: "#/components/schemas/ReviewRequest"
+      responses:
+        "201":
+          description: "Avaliação criada com sucesso"
+          content:
+            application/vnd.api+json:
+              schema:
+                $ref: "#/components/schemas/ReviewResponse"
+        "400":
+          description: "Dados inválidos (ex: rating fora de 1 a 5, comentário curto/demais)"
+          content:
+            application/vnd.api+json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "401":
+          description: "Usuário não autenticado"
+          content:
+            application/vnd.api+json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "409":
+          description: "O usuário já avaliou este filme. É necessário editar a avaliação existente."
+          content:
+            application/vnd.api+json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+    get:
+      summary: "Listar avaliações"
+      description: "Retorna uma lista de avaliações. Pode ser filtrado por ID do filme, pesquisa de comentários, rating ou autor. Se nenhuma avaliação for encontrada, retornamos 404 e uma mensagem adequada."
+      operationId: "getReviews"
+      tags:
+        - Reviews
+      parameters:
+        - name: movie_id
+          in: query
+          required: false
+          schema:
+            type: string
+          description: "Filtrar por ID do filme"
+        - name: q
+          in: query
+          required: false
+          schema:
+            type: string
+          description: "Palavra-chave para buscar dentro de comentários (ex: 'masterpiece')"
+        - name: rating
+          in: query
+          required: false
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 5
+          description: "Filtrar avaliações por um rating específico"
+        - name: author
+          in: query
+          required: false
+          schema:
+            type: string
+          description: "Filtrar avaliações pelo nome do autor (ou 'me' para buscar avaliações do usuário autenticado)"
+      responses:
+        "200":
+          description: "Lista de avaliações"
+          content:
+            application/vnd.api+json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: array
+                    items:
+                      $ref: "#/components/schemas/ReviewResponseData"
+        "404":
+          description: "Nenhuma avaliação encontrada"
+          content:
+            application/vnd.api+json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  /reviews/{id}:
+    put:
+      summary: "Atualizar uma avaliação existente"
+      description: "Somente o autor da avaliação ou um administrador pode atualizar. A média do filme é recalculada."
+      operationId: "updateReview"
+      tags:
+        - Reviews
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+          description: "ID da avaliação"
+      requestBody:
+        required: true
+        content:
+          application/vnd.api+json:
+            schema:
+              $ref: "#/components/schemas/ReviewRequest"
+      responses:
+        "200":
+          description: "Avaliação atualizada com sucesso"
+          content:
+            application/vnd.api+json:
+              schema:
+                $ref: "#/components/schemas/ReviewResponse"
+        "400":
+          description: "Dados inválidos (rating fora de 1 a 5, comentário fora dos limites, etc.)"
+          content:
+            application/vnd.api+json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "403":
+          description: "Acesso negado (somente o autor ou admin pode editar)"
+          content:
+            application/vnd.api+json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "404":
+          description: "Avaliação não encontrada"
+          content:
+            application/vnd.api+json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+    delete:
+      summary: "Excluir uma avaliação"
+      description: "Somente o autor ou um administrador pode excluir a avaliação. A média do filme é recalculada."
+      operationId: "deleteReview"
+      tags:
+        - Reviews
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+          description: "ID da avaliação"
+      responses:
+        "200":
+          description: "Avaliação excluída com sucesso (ou 204 No Content, dependendo de sua preferência)"
+        "403":
+          description: "Acesso negado (somente o autor ou administrador pode excluir)"
+          content:
+            application/vnd.api+json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "404":
+          description: "Avaliação não encontrada"
+          content:
+            application/vnd.api+json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+components:
+  schemas:
+
+    # ---------------------------
+    # Movie Schemas
+    # ---------------------------
+    MovieRequest:
+      type: object
+      properties:
+        data:
+          type: object
+          properties:
+            type:
+              type: string
+              example: "movies"
+            attributes:
+              type: object
+              properties:
+                title:
+                  type: string
+                  example: "Inception"
+                genre:
+                  type: string
+                  example: "Sci-Fi"
+                description:
+                  type: string
+                  example: "A thief who enters the dreams of others to steal secrets."
+                release_year:
+                  type: integer
+                  example: 2010
+      required:
+        - data
+
+    MovieResponse:
+      type: object
+      properties:
+        data:
+          type: object
+          properties:
+            id:
+              type: string
+              example: "1"
+            type:
+              type: string
+              example: "movies"
+            attributes:
+              type: object
+              properties:
+                title:
+                  type: string
+                  example: "Inception"
+                genre:
+                  type: string
+                  example: "Sci-Fi"
+                description:
+                  type: string
+                  example: "A thief who enters the dreams of others to steal secrets."
+                release_year:
+                  type: integer
+                  example: 2010
+      required:
+        - data
+
+    MovieListResponse:
+      type: object
+      properties:
+        data:
+          type: array
+          items:
+            type: object
+            properties:
+              id:
+                type: string
+                example: "1"
+              type:
+                type: string
+                example: "movies"
+              attributes:
+                type: object
+                properties:
+                  title:
+                    type: string
+                    example: "Inception"
+                  genre:
+                    type: string
+                    example: "Sci-Fi"
+                  description:
+                    type: string
+                    example: "A thief who enters the dreams of others to steal secrets."
+                  release_year:
+                    type: integer
+                    example: 2010
+
+    # ---------------------------
+    # Review Schemas
+    # ---------------------------
+    ReviewRequest:
+      type: object
+      properties:
+        data:
+          type: object
+          properties:
+            type:
+              type: string
+              example: "reviews"
+            attributes:
+              type: object
+              properties:
+                author_name:
+                  type: string
+                  example: "John Doe"
+                movie_id:
+                  type: string
+                  example: "1"
+                movie_title:
+                  type: string
+                  example: "Inception"
+                rating:
+                  type: integer
+                  minimum: 1
+                  maximum: 5
+                  example: 5
+                comment:
+                  type: string
+                  minLength: 5
+                  maxLength: 500
+                  example: "Excelente filme!"
+      required:
+        - data
+
+    ReviewResponse:
+      type: object
+      properties:
+        data:
+          type: object
+          properties:
+            id:
+              type: string
+              example: "101"
+            type:
+              type: string
+              example: "reviews"
+            attributes:
+              type: object
+              properties:
+                author_name:
+                  type: string
+                  example: "John Doe"
+                movie_id:
+                  type: string
+                  example: "1"
+                movie_title:
+                  type: string
+                  example: "Inception"
+                rating:
+                  type: integer
+                  minimum: 1
+                  maximum: 5
+                  example: 5
+                comment:
+                  type: string
+                  minLength: 5
+                  maxLength: 500
+                  example: "Excelente filme!"
+                created_at:
+                  type: string
+                  format: date-time
+                  example: "2025-02-06T12:00:00Z"
+                updated_at:
+                  type: string
+                  format: date-time
+                  example: "2025-02-06T15:00:00Z"
+      required:
+        - data
+
+    # Used in GET /reviews (list)
+    ReviewResponseData:
+      type: object
+      properties:
+        id:
+          type: string
+          example: "101"
+        type:
+          type: string
+          example: "reviews"
+        attributes:
+          type: object
+          properties:
+            author_name:
+              type: string
+              example: "John Doe"
+            movie_id:
+              type: string
+              example: "1"
+            movie_title:
+              type: string
+              example: "Inception"
+            rating:
+              type: integer
+              minimum: 1
+              maximum: 5
+              example: 5
+            comment:
+              type: string
+              minLength: 5
+              maxLength: 500
+              example: "Excelente filme!"
+            created_at:
+              type: string
+              format: date-time
+              example: "2025-02-06T12:00:00Z"
+            updated_at:
+              type: string
+              format: date-time
+              example: "2025-02-06T15:00:00Z"
+
+    # ---------------------------
+    # Error Schema
+    # ---------------------------
+    ErrorResponse:
+      type: object
+      properties:
+        errors:
+          type: array
+          items:
+            type: object
+            properties:
+              status:
+                type: string
+                example: "400"
+              title:
+                type: string
+                example: "Invalid Request"
+              detail:
+                type: string
+                example: "The provided data is not valid."
